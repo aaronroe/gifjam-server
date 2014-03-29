@@ -6,9 +6,11 @@ from flask.ext.pymongo import PyMongo, ObjectId
 from uuid import uuid4
 from gridfs import GridFS
 import time
+import json
 
 UPLOAD_FOLDER = 'file-uploads'
 ALLOWED_EXTENSIONS = set(['mp4'])
+HOSTNAME = "128.239.163.254:5000"
 DEBUG = True
 
 app = Flask(__name__)
@@ -91,7 +93,6 @@ def __getUserOid(name):
 	if cursor.count() == 0:
 		return None
 	else:
-		print cursor[0]["_id"]
 		return cursor[0]["_id"]
 
 def __insertGifInDb(name, caption, owner_oid):
@@ -103,24 +104,35 @@ def profile_feed():
 	"""Takes in a lastDate and user GET variables. Returns the next food in the feed"""
 	params = request.args
 	if 'user' in params:
-		user = params['user']
+		username = params['user']
 		if 'lastDate' in params:
 			# a last date was specified.
 			# sort the elements in the cursor by timestamp
-			mongo.db.gif.sort("")
 			# get the top 5 elements after lastDate
 			# for each of these top 5 elements:
 				# make them a json dict
 			return params['lastDate']
 		else:
 			# assume that we want the most recent
-			cursor = mongo.db.gif.find({"name": user})
 			# sort the elements in the cursor by timestamp
 			# get the top 5 elements
-			# for each of these top 5 elements:
-				# make them a json dict
+			recent_cursor = mongo.db.gif.find({"owner": __getUserOid(username)}).sort("timestamp")[:5]
 
-			return user
+			feed = []
+
+			# build up the dict for each gif
+			for gif in recent_cursor:
+				gif_dict = {}
+				gif_dict["username"] = username
+				gif_dict["caption"] = gif["caption"]
+				gif_dict["timestamp"] = gif["timestamp"]
+				gif_dict["gif_url"] = "http://" + HOSTNAME + "/file/" + gif["name"] + ".gif"
+				gif_dict["likes"] = []
+				gif_dict["comments"] = []
+
+				feed.append(gif_dict)
+
+			return json.dumps(feed)
 	else:
 		return "A user needs to be specified"
 
