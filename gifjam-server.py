@@ -5,6 +5,7 @@ from moviepy.editor import *
 from flask.ext.pymongo import PyMongo, ObjectId
 from uuid import uuid4
 from gridfs import GridFS
+import time
 
 UPLOAD_FOLDER = 'file-uploads'
 ALLOWED_EXTENSIONS = set(['mp4'])
@@ -95,7 +96,7 @@ def __getUserOid(name):
 
 def __insertGifInDb(name, caption, owner_oid):
 	"""Inserts the gif into the db"""
-	mongo.db.gif.insert({"name": name, "caption":caption, "owner":owner_oid})
+	mongo.db.gif.insert({"name": name, "caption":caption, "owner":owner_oid, "timestamp":int(time.time())})
 
 @app.route("/profilefeed")
 def profile_feed():
@@ -106,6 +107,7 @@ def profile_feed():
 		if 'lastDate' in params:
 			# a last date was specified.
 			# sort the elements in the cursor by timestamp
+			mongo.db.gif.sort("")
 			# get the top 5 elements after lastDate
 			# for each of these top 5 elements:
 				# make them a json dict
