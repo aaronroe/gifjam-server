@@ -8,6 +8,7 @@ from gridfs import GridFS
 
 UPLOAD_FOLDER = 'file-uploads'
 ALLOWED_EXTENSIONS = set(['mp4'])
+DEBUG = True
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -22,6 +23,12 @@ def allowed_file(filename):
 @app.route("/")
 def hello():
 	return "Hello Tribe Hacks!"
+
+@app.route("/init")
+def db_init():
+	"""Crappy helper function that inits some db values."""
+	mongo.db.user.insert({"name":"root"})
+	return ""
 
 @app.route("/file/<filename>")
 def get_file(filename):
@@ -48,7 +55,8 @@ def upload():
 
 	if file and allowed_file(file.filename):
 		# escape the filename so it is safe to store on the server
-		filename = secure_filename(str(uuid4()) + ".mp4")
+		basename = str(uuid4())
+		filename = secure_filename(basename + ".mp4")
 
 		# save the uploaded video.
 		name_with_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -58,7 +66,7 @@ def upload():
 		gifpath = "converted/" + gifname
 
 		# Create the gif
-		VideoFileClip(name_with_path).to_gif(gifpath)
+		VideoFileClip(name_with_path).subclip((0,0.0),(0,5.0)).resize(0.3).to_gif(gifpath)
 
 		# save the video and gif to mongo
 		mp4file = open(name_with_path)
@@ -70,7 +78,24 @@ def upload():
 		# clean up what we uploaded.
 		os.remove(name_with_path)
 		os.remove(gifpath)
+
+		# finally, add an entry in the gif database
+		__insertGifInDb(basename, "", __getUserOid("root"))
 	return ""
+
+def __getUserOid(name):
+	"""Looks up username in database and returns the oid of that user"""
+	cursor = mongo.db.user.find({"name": name})
+
+	if cursor.count() == 0:
+		return None
+	else:
+		print cursor[0]["_id"]
+		return cursor[0]["_id"]
+
+def __insertGifInDb(name, caption, owner_oid):
+	"""Inserts the gif into the db"""
+	mongo.db.gif.insert({"name": name, "caption":caption, "owner":owner_oid})
 
 @app.route("/profilefeed")
 def profile_feed():
@@ -80,12 +105,25 @@ def profile_feed():
 		user = params['user']
 		if 'lastDate' in params:
 			# a last date was specified.
+			# sort the elements in the cursor by timestamp
+			# get the top 5 elements after lastDate
+			# for each of these top 5 elements:
+				# make them a json dict
 			return params['lastDate']
 		else:
 			# assume that we want the most recent
+			cursor = mongo.db.gif.find({"name": user})
+			# sort the elements in the cursor by timestamp
+			# get the top 5 elements
+			# for each of these top 5 elements:
+				# make them a json dict
+
 			return user
 	else:
 		return "A user needs to be specified"
 
 if __name__ == "__main__":
-	app.run(debug=True)
+	if DEBUG:
+		app.run(host="0.0.0.0", debug=True)
+	else:
+		app.run(host="0.0.0.0")
