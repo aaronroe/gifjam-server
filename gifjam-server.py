@@ -12,6 +12,12 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 mongo = PyMongo(app)
 
+def allowed_file(filename):
+	"""Takes in a filename and returns whether or not it is of the allowed filetype."""
+  return '.' in filename and \
+		filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
+
+
 @app.route("/")
 def hello():
 	return "Hello Tribe Hacks!"
