@@ -72,5 +72,20 @@ def upload():
 		os.remove(gifpath)
 	return ""
 
+@app.route("/profilefeed")
+def profile_feed():
+	"""Takes in a lastDate and user GET variables. Returns the next food in the feed"""
+	params = request.args
+	if 'user' in params:
+		user = params['user']
+		if 'lastDate' in params:
+			# a last date was specified.
+			return params['lastDate']
+		else:
+			# assume that we want the most recent
+			return user
+	else:
+		return "A user needs to be specified"
+
 if __name__ == "__main__":
 	app.run(debug=True)
