@@ -1,9 +1,10 @@
 import os
-from flask import Flask, request
+from flask import Flask, request, make_response
 from werkzeug.utils import secure_filename
 from moviepy.editor import *
-from flask.ext.pymongo import PyMongo
+from flask.ext.pymongo import PyMongo, ObjectId
 from uuid import uuid4
+from gridfs import GridFS
 
 UPLOAD_FOLDER = 'file-uploads'
 ALLOWED_EXTENSIONS = set(['mp4'])
@@ -22,6 +23,25 @@ def allowed_file(filename):
 def hello():
 	return "Hello Tribe Hacks!"
 
+@app.route("/file/<filename>")
+def get_file(filename):
+	# Check to see if the file exists
+	cursor = mongo.db.fs.files.find({"filename": filename})
+	if cursor.count() == 0:
+		return "File not found"
+	else:
+		# retrieve the mongo object id
+		gridfs_id = cursor[0]["_id"]
+
+		# get our grid fs instance
+		fs = GridFS(mongo.db)
+
+		# serve the file
+		file = fs.get(ObjectId(gridfs_id))
+		response = make_response(file.read())
+		response.mimetype = file.content_type
+		return response
+
 @app.route("/upload", methods=["POST"])
 def upload():
 	file = request.files['video']
@@ -38,11 +58,12 @@ def upload():
 		gifpath = "converted/" + gifname
 
 		# Create the gif
-		VideoFileClip(name_with_path).subclip((0,0.0), (0,1.0)).resize(0.3).to_gif(gifpath)
+		VideoFileClip(name_with_path).to_gif(gifpath)
 
 		# save the video and gif to mongo
+		mp4file = open(name_with_path)
 		giffile = open(gifpath)
-		mongo.save_file(filename, file)
+		mongo.save_file(filename, mp4file)
 		mongo.save_file(gifname, giffile)
 		giffile.close()
 
