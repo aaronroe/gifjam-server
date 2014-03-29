@@ -3,6 +3,7 @@ from flask import Flask, request
 from werkzeug.utils import secure_filename
 from moviepy.editor import *
 from flask.ext.pymongo import PyMongo
+from uuid import uuid4
 
 UPLOAD_FOLDER = 'file-uploads'
 ALLOWED_EXTENSIONS = set(['mp4'])
@@ -27,9 +28,9 @@ def upload():
 
 	if file and allowed_file(file.filename):
 		# escape the filename so it is safe to store on the server
-		filename = secure_filename(file.filename)
+		filename = secure_filename(str(uuid4()) + ".mp4")
 
-		# the name & path of upload.
+		# save the uploaded video.
 		name_with_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
 		file.save(name_with_path)
 
@@ -41,7 +42,7 @@ def upload():
 
 		# save the video and gif to mongo
 		giffile = open(gifpath)
-		mongo.save_file(file.filename, file)
+		mongo.save_file(filename, file)
 		mongo.save_file(gifname, giffile)
 		giffile.close()
 
