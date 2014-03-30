@@ -1,8 +1,8 @@
 from gifjamserver import mongo, flask_bcrypt, ObjectId
 
 class User():
-	def __init__(self, email=None, password=None, active=True, id=None, authenticated=False):
-		self.email = email
+	def __init__(self, username=None, password=None, active=True, id=None, authenticated=False):
+		self.username = username
 		self.password = password
 		self.active = active
 		self.id = None
@@ -14,7 +14,7 @@ class User():
 			return None
 		else:
 			user_from_db = cursor[0]
-			self.email = user_from_db['email']
+			self.username = user_from_db['username']
 			self.password = user_from_db['password']
 			self.active = user_from_db['active']
 			self.id = str(user_from_db['_id'])
@@ -27,7 +27,7 @@ class User():
 			return True
 
 	def authenticate(self):
-		cursor = mongo.db.user.find({"$and":[{"email": self.email}]})
+		cursor = mongo.db.user.find({"$and":[{"username": self.username}]})
 		if cursor.count() == 0:
 			return False
 		else:
@@ -52,7 +52,7 @@ class User():
 
 	def save(self):
 		if self.id is None:
-			mongo.db.user.save({"email": self.email, "password": self.password, "active": self.active})	
+			mongo.db.user.save({"username": self.username, "password": self.password, "active": self.active})	
 		else:
-			mongo.db.user.save({"_id": self.id, "email": self.email, "password": self.password, "active": self.active})
+			mongo.db.user.save({"_id": self.id, "username": self.username, "password": self.password, "active": self.active})
 

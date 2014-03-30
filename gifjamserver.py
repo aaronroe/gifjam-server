@@ -45,25 +45,25 @@ def load_user(userid):
 
 @app.route("/register", methods=["POST"])
 def register():
-	email = request.form['email']
+	username = request.form['username']
 	password_hash = flask_bcrypt.generate_password_hash(request.form['password'])
-	user = User.User(email,password_hash)
+	user = User.User(username,password_hash)
 	user.save()
 	return ""
 
 @app.route("/login", methods=["POST"])
 def login():
-	email = request.form['email']
+	username = request.form['username']
 	
-	user = User.User(email, request.form['password'])
+	user = User.User(username, request.form['password'])
 
 	if user.authenticate():
 		if login_user(user):
-			return "Welcome, dude!"
+			return user.get_id()
 		else:
-			"Something weird is going on"
+			"null"
 	else:
-		return "Invalid Credentials"
+		return "null"
 
 @app.route("/logout", methods=["POST", "GET"])
 def logout():
@@ -112,13 +112,58 @@ def __remove_follow(follower_id, id_to_unfollow):
 			mongo.db.follow.remove({"followed": id_to_unfollow, "follower": follower_id})
 			return True
 
-@app.route("/like/<id_to_like>", methods=["POST"])
-def like(id_to_like):
-	return ""
+@app.route("/like/<gif_name>", methods=["POST"])
+def like(gif_name):
+	if current_user.get_id() and __create_like(current_user.get_id(), gif_name):
+		return "Like successful"
+	else:
+		return "You can't Like!"
 
-@app.route("/like/<id_to_unlike>", methods=["POST"])
-def unlike(id_to_unlike):
-	return ""
+def __create_like(liker_id, gif_name):
+	cursor = mongo.db.user.find({"_id": ObjectId(liker_id)})
+	# check if the liker exists
+	if cursor.count() == 0:
+		return False
+	else:
+		# next we need to see if the gif exists
+		cursor = mongo.db.gif.find({"name": gif_name})
+		if cursor.count() == 0:
+			return False
+		else:
+			# check to see that the combination exists
+			cursor = mongo.db.like.find({"$and":[{"liker": liker_id}, {"name": gif_name}]})
+			if cursor.count() == 0:
+				mongo.db.like.save({"liker": liker_id, "name": gif_name})
+				return True
+			else:
+				return False
+
+@app.route("/unlike/<gif_name>", methods=["POST"])
+def unlike(gif_name):
+	if current_user.get_id() and __remove_like(current_user.get_id(), gif_name):
+		return "Unlike successful"
+	else:
+		return "You can't unlike?"
+
+def __remove_like(liker_id, gif_name):
+	cursor = mongo.db.user.find({"_id": ObjectId(liker_id)})
+	# check if the liker exists
+	if cursor.count() == 0:
+		return False
+	else:
+		# next we need to see if the gif exists
+		cursor = mongo.db.gif.find({"name": gif_name})
+		if cursor.count() == 0:
+			return False
+		else:
+			gif_id = cursor[0]["_id"]
+			# check to see that the combination exists
+			cursor = mongo.db.like.find({"$and":[{"liker": liker_id}, {"gif_id": gif_id}]})
+			if cursor.count() == 0:
+				return False
+			else:
+				mongo.db.like.remove({"liker": liker_id, "gif_id": gif_id})
+				return True
 
 @app.route("/")
 def index():
@@ -143,42 +188,48 @@ def get_file(filename):
 		response.mimetype = file.content_type
 		return response
 
-@app.route("/upload", methods=["POST"])
-def upload():
-	if current_user.get_id():
-		file = request.files['video']
+@app.route("/upload/<user_id>", methods=["POST"])
+def upload(user_id):
+	# if current_user.get_id():
+	file = request.files['video']
 
-		if file and allowed_file(file.filename):
-			# escape the filename so it is safe to store on the server
-			basename = str(uuid4())
-			filename = secure_filename(basename + ".mp4")
+	if file and allowed_file(file.filename):
+		# escape the filename so it is safe to store on the server
+		basename = str(uuid4())
+		filename = secure_filename(basename + ".mp4")
 
-			# save the uploaded video.
-			name_with_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-			file.save(name_with_path)
+		# save the uploaded video.
+		name_with_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+		file.save(name_with_path)
 
-			gifname = filename.rsplit(".", 1)[0] + ".gif"
-			gifpath = "converted/" + gifname
+		gifname = filename.rsplit(".", 1)[0] + ".gif"
+		gifpath = "converted/" + gifname
 
-			# Create the gif
-			VideoFileClip(name_with_path).subclip((0,0.0),(0,5.0)).resize(0.3).to_gif(gifpath)
+		# Create the gif
+		clip = vfx.rotation(VideoFileClip(name_with_path).resize(0.3), -90)
+		clip.crop(x1=0,y1=0,x2=clip.w,y2=clip.w-clip.h).to_gif(gifpath)
 
-			# save the video and gif to mongo
-			mp4file = open(name_with_path)
-			giffile = open(gifpath)
-			mongo.save_file(filename, mp4file)
-			mongo.save_file(gifname, giffile)
-			giffile.close()
+		# save the video and gif to mongo
+		mp4file = open(name_with_path)
+		giffile = open(gifpath)
+		mongo.save_file(filename, mp4file)
+		mongo.save_file(gifname, giffile)
+		giffile.close()
 
-			# clean up what we uploaded.
-			os.remove(name_with_path)
-			os.remove(gifpath)
+		# clean up what we uploaded.
+		os.remove(name_with_path)
+		os.remove(gifpath)
 
-			# finally, add an entry in the gif database
-			__insertGifInDb(basename, "", current_user.get_id())
-		return ""
+		# finally, add an entry in the gif database
+		__insertGifInDb(basename, "", user_id)
+		# __insertGifInDb(basename, "", current_user.get_id())
+		# __insertGifInDb(basename, "", "")
+
+		return "Upload successful"
 	else:
-		return "You are not logged in."
+		return "That type of file is not allowed"
+	# else:
+	# 	return "You are not logged in."
 
 def __getUserOid(name):
 	"""Looks up username in database and returns the oid of that user"""
@@ -198,26 +249,26 @@ def profile_feed():
 	"""Takes in a lastDate and user GET variables. Returns the next food in the feed"""
 	params = request.args
 	if 'user' in params:
-		username = params['user']
+		user_id = params['user']
 		if 'lastDate' in params:
 			lastDate = params["lastDate"]
-			recent_cursor = mongo.db.gif.find({"$and":[{"owner": __getUserOid(username)},{"timestamp": {"$lt": int(lastDate)}}]}).sort("timestamp")[:5]
+			recent_cursor = mongo.db.gif.find({"$and":[{"owner": user_id},{"timestamp": {"$lt": int(lastDate)}}]}).sort("timestamp")[:5]
 		else:
 			# assume that we want the most recent
 			# sort the elements in the cursor by timestamp
 			# get the top 5 elements
-			recent_cursor = mongo.db.gif.find({"owner": __getUserOid(username)}).sort("timestamp")[:5]
+			recent_cursor = mongo.db.gif.find({"owner": user_id}).sort("timestamp")[:5]
 
 		feed = []
 
 		# build up the dict for each gif
 		for gif in recent_cursor:
 			gif_dict = {}
-			gif_dict["username"] = username
+			gif_dict["username"] = mongo.db.user.find({"_id": ObjectId(user_id)})[0]['username']
 			gif_dict["caption"] = gif["caption"]
 			gif_dict["timestamp"] = gif["timestamp"]
 			gif_dict["gif_url"] = "http://" + HOSTNAME + "/file/" + gif["name"] + ".gif"
-			gif_dict["likes"] = []
+			gif_dict["likes"] = __get_likes(gif["name"])
 			gif_dict["comments"] = []
 
 			feed.append(gif_dict)
@@ -225,6 +276,12 @@ def profile_feed():
 		return json.dumps(feed)
 	else:
 		return "A user needs to be specified"
+
+def __get_likes(gif_name):
+	returnList = []
+	for like in mongo.db.like.find({"name": gif_name}):
+		returnList.append(like['liker'])
+	return returnList
 
 @app.route("/news_feed")
 def news_feed():
@@ -265,11 +322,11 @@ def news_feed():
 		# build up the dict for each gif
 		for gif in gif_aggregate:
 			gif_dict = {}
-			gif_dict["username"] = str(mongo.db.user.find({"_id": ObjectId(gif["owner"])})[0]['email'])
+			gif_dict["username"] = mongo.db.user.find({"_id": ObjectId(gif["owner"])})[0]['username']
 			gif_dict["caption"] = gif["caption"]
 			gif_dict["timestamp"] = gif["timestamp"]
 			gif_dict["gif_url"] = "http://" + HOSTNAME + "/file/" + gif["name"] + ".gif"
-			gif_dict["likes"] = []
+			gif_dict["likes"] = __get_likes(gif["name"])
 			gif_dict["comments"] = []
 
 			feed.append(gif_dict)
