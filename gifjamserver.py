@@ -8,7 +8,7 @@ from moviepy.editor import *
 from flask.ext.pymongo import PyMongo, ObjectId
 from uuid import uuid4
 from gridfs import GridFS
-from flask.ext.login import LoginManager, login_user, current_user, login_required
+from flask.ext.login import LoginManager, login_user, current_user, login_required, logout_user
 from flask.ext.bcrypt import Bcrypt
 import time
 import json
@@ -41,7 +41,6 @@ def load_user(userid):
 	if user.is_real():
 		return user
 	else:
-		print "invalid user"
 		return None
 
 @app.route("/register", methods=["POST"])
@@ -73,14 +72,14 @@ def logout():
 
 @app.route("/follow/<id_to_follow>", methods=["POST"])
 def follow(id_to_follow):
-	if create_follow(current_user.get_id(), id_to_follow):
+	if current_user.get_id() and create_follow(current_user.get_id(), id_to_follow):
 		return "You are following"
 	else:
 		return "You can't follow, buddy"
 
 @app.route("/unfollow/<id_to_unfollow>", methods=["POST"])
 def unfollow(id_to_unfollow):
-	if remove_follow(current_user.get_id(), id_to_unfollow):
+	if current_user.get_id() and remove_follow(current_user.get_id(), id_to_unfollow):
 		return "Unfollow successful"
 	else:
 		return "You can't unfollow?"
@@ -138,37 +137,40 @@ def get_file(filename):
 
 @app.route("/upload", methods=["POST"])
 def upload():
-	file = request.files['video']
+	if current_user.get_id():
+		file = request.files['video']
 
-	if file and allowed_file(file.filename):
-		# escape the filename so it is safe to store on the server
-		basename = str(uuid4())
-		filename = secure_filename(basename + ".mp4")
+		if file and allowed_file(file.filename):
+			# escape the filename so it is safe to store on the server
+			basename = str(uuid4())
+			filename = secure_filename(basename + ".mp4")
 
-		# save the uploaded video.
-		name_with_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-		file.save(name_with_path)
+			# save the uploaded video.
+			name_with_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+			file.save(name_with_path)
 
-		gifname = filename.rsplit(".", 1)[0] + ".gif"
-		gifpath = "converted/" + gifname
+			gifname = filename.rsplit(".", 1)[0] + ".gif"
+			gifpath = "converted/" + gifname
 
-		# Create the gif
-		VideoFileClip(name_with_path).subclip((0,0.0),(0,5.0)).resize(0.3).to_gif(gifpath)
+			# Create the gif
+			VideoFileClip(name_with_path).subclip((0,0.0),(0,5.0)).resize(0.3).to_gif(gifpath)
 
-		# save the video and gif to mongo
-		mp4file = open(name_with_path)
-		giffile = open(gifpath)
-		mongo.save_file(filename, mp4file)
-		mongo.save_file(gifname, giffile)
-		giffile.close()
+			# save the video and gif to mongo
+			mp4file = open(name_with_path)
+			giffile = open(gifpath)
+			mongo.save_file(filename, mp4file)
+			mongo.save_file(gifname, giffile)
+			giffile.close()
 
-		# clean up what we uploaded.
-		os.remove(name_with_path)
-		os.remove(gifpath)
+			# clean up what we uploaded.
+			os.remove(name_with_path)
+			os.remove(gifpath)
 
-		# finally, add an entry in the gif database
-		__insertGifInDb(basename, "", __getUserOid("root"))
-	return ""
+			# finally, add an entry in the gif database
+			__insertGifInDb(basename, "", current_user.get_id())
+		return ""
+	else:
+		return "You are not logged in."
 
 def __getUserOid(name):
 	"""Looks up username in database and returns the oid of that user"""
@@ -221,20 +223,41 @@ def news_feed():
 	"""Takes in a lastDate and a loggedInUser"""
 	params = request.args
 	if 'loggedInUser' in params:
-		logged_in_user = params["logged_in_user"]
+		logged_in_user = params["loggedInUser"]
 		if 'lastDate' in params:
 			lastDate = params["lastDate"]
-			recent_cursor = []
+			gif_aggregate = []
+
+			followers_cursor = mongo.db.follow.find({"following": logged_in_user})
+			for follow in followers_cursor:
+				for gif in mongo.db.gif.find({"$and": [{"owner": __getUserOid(follow['followed'])}, {"timestamp": {"$lt": int(lastDate)}}]}).sort("timestamp")[:5]:
+					gif_aggregate.append(gif)
+
+			gif_aggregate.sort(key=lambda gif: gif['timestamp'], reverse=True)
+
+			gif_aggregate = gif_aggregate[:5]
+
 		else:
+			# we need to build aggregate of gifs from people we are following
+			gif_aggregate = []
+
 			# we assume that user wants the latest feed content
-			recent_cursor = []
+			followers_cursor = mongo.db.follow.find({"follower": logged_in_user})
+			for follow in followers_cursor:
+				print follow['followed']
+				for gif in mongo.db.gif.find({"owner": follow['followed']}).sort("timestamp")[:5]:
+					gif_aggregate.append(gif)
+
+			gif_aggregate.sort(key=lambda gif: gif['timestamp'], reverse=True)
+
+			gif_aggregate = gif_aggregate[:5]
 
 		feed = []
 
 		# build up the dict for each gif
-		for gif in recent_cursor:
+		for gif in gif_aggregate:
 			gif_dict = {}
-			gif_dict["username"] = username
+			gif_dict["username"] = str(mongo.db.user.find({"_id": ObjectId(gif["owner"])})[0]['email'])
 			gif_dict["caption"] = gif["caption"]
 			gif_dict["timestamp"] = gif["timestamp"]
 			gif_dict["gif_url"] = "http://" + HOSTNAME + "/file/" + gif["name"] + ".gif"
