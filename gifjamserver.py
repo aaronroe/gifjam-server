@@ -112,6 +112,14 @@ def __remove_follow(follower_id, id_to_unfollow):
 			mongo.db.follow.remove({"followed": id_to_unfollow, "follower": follower_id})
 			return True
 
+@app.route("/like/<id_to_like>", methods=["POST"])
+def like(id_to_like):
+	return ""
+
+@app.route("/like/<id_to_unlike>", methods=["POST"])
+def unlike(id_to_unlike):
+	return ""
+
 @app.route("/")
 def index():
 	return "Hello Tribe Hacks!"
