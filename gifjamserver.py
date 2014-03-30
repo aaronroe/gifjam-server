@@ -172,11 +172,18 @@ def __remove_like(liker_id, gif_name):
 
 @app.route("/update_profile/<user_id>", methods=["POST"])
 def update_profile(user_id):
-	bio = request.form['bio']
-	profile_gif = request.form['profile_gif']
-	user = User.User()
-	user.load_by_id(user_id)
-	user.update_profile(bio, profile_gif)
+	params = request.form
+	if "bio" in params:
+		bio = request.form['bio']
+		user = User.User()
+		user.load_by_id(user_id)
+		user.update_profile(bio=bio)
+	
+	if "profile_gif" in params:
+		profile_gif = request.form['profile_gif']
+		user = User.User()
+		user.load_by_id(user_id)
+		user.update_profile(profile_gif=profile_gif)
 	return "Update Successful"
 
 @app.route("/get_profile/<user_id>")
@@ -245,7 +252,7 @@ def upload(user_id):
 		gifpath = "converted/" + gifname
 
 		# Create the gif
-		clip = vfx.rotation(VideoFileClip(name_with_path).resize(0.3), -90)
+		clip = vfx.rotation(VideoFileClip(name_with_path).resize(0.75), -90)
 		clip.crop(x1=0,y1=0,x2=clip.w,y2=clip.w-clip.h).to_gif(gifpath)
 
 		# save the video and gif to mongo

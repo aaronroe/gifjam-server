@@ -30,9 +30,11 @@ class User():
 		else:
 			return True
 
-	def update_profile(self, bio, profile_gif):
-		self.bio = bio
-		self.profile_gif = profile_gif
+	def update_profile(self, bio=None, profile_gif=None):
+		if bio:
+			self.bio = bio
+		if profile_gif:
+			self.profile_gif = profile_gif
 		self.save()
 
 	def authenticate(self):
@@ -62,5 +64,7 @@ class User():
 	def save(self):
 		if self.id is None:
 			mongo.db.user.save({"username": self.username, "password": self.password, "active": self.active, "profile_gif": self.profile_gif, "bio": self.bio})	
+			self.id = str(mongo.db.user.find({"username": self.username})[0]["_id"])
+			mongo.db.follow.save({"followed":self.id, "follower":self.id})
 		else:
 			mongo.db.user.save({"_id": ObjectId(self.id), "username": self.username, "password": self.password, "active": self.active, "profile_gif": self.profile_gif, "bio": self.bio})
