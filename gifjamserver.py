@@ -165,6 +165,15 @@ def __remove_like(liker_id, gif_name):
 				mongo.db.like.remove({"liker": liker_id, "gif_id": gif_id})
 				return True
 
+@app.route("/update_profile/<user_id>", methods=["POST"])
+def update_profile(user_id):
+	bio = request.form['bio']
+	profile_gif = request.form['profile_gif']
+	user = User.User()
+	user.load_by_id(user_id)
+	user.update_profile(bio, profile_gif)
+	return "Update Successful"
+
 @app.route("/")
 def index():
 	return "Hello Tribe Hacks!"
