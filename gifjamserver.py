@@ -35,7 +35,7 @@ def allowed_file(filename):
 
 @login_manager.user_loader
 def load_user(userid):
-	user = User()
+	user = User.User()
 	user.load_by_id(userid)
 	if user.is_real():
 		return user
@@ -46,18 +46,13 @@ def load_user(userid):
 def register():
 	email = request.form['email']
 	password_hash = flask_bcrypt.generate_password_hash(request.form['password'])
-	user = User(email,password_hash)
+	user = User.User(email,password_hash)
 	user.save()
+	return ""
 
 @app.route("/")
 def hello():
 	return "Hello Tribe Hacks!"
-
-@app.route("/init")
-def db_init():
-	"""Crappy helper function that inits some db values."""
-	mongo.db.user.insert({"name":"root"})
-	return ""
 
 @app.route("/file/<filename>")
 def get_file(filename):

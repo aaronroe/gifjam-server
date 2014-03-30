@@ -1,15 +1,15 @@
-from gifjam-server import mongo
+from gifjamserver import mongo
 
 class User():
-  def __init__(self, email=None, password=None, active=True, id=None):
-    self.email = email
-    self.password = password
-    self.active = active
-    self.id = None
+	def __init__(self, email=None, password=None, active=True, id=None):
+		self.email = email
+		self.password = password
+		self.active = active
+		self.id = None
 
-  def load_by_id(self, id):
-  	cursor = mongo.db.user.find({"_id": id})
-  	if cursor.count() == 0:
+	def load_by_id(self, id):
+		cursor = mongo.db.user.find({"_id": id})
+		if cursor.count() == 0:
 			return None
 		else:
 			user_from_db = cursor[0]
@@ -26,4 +26,7 @@ class User():
 			return True
 
 	def save(self):
-		mongo.db.user.save({"_id": self.id, "email": self.email, "password": self.password, "active": self.active})
+		if self.id is None:
+			mongo.db.user.save({"email": self.email, "password": self.password, "active": self.active})	
+		else:
+			mongo.db.user.save({"_id": self.id, "email": self.email, "password": self.password, "active": self.active})	
