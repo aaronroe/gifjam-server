@@ -72,19 +72,19 @@ def logout():
 
 @app.route("/follow/<id_to_follow>", methods=["POST"])
 def follow(id_to_follow):
-	if current_user.get_id() and create_follow(current_user.get_id(), id_to_follow):
+	if current_user.get_id() and __create_follow(current_user.get_id(), id_to_follow):
 		return "You are following"
 	else:
 		return "You can't follow, buddy"
 
 @app.route("/unfollow/<id_to_unfollow>", methods=["POST"])
 def unfollow(id_to_unfollow):
-	if current_user.get_id() and remove_follow(current_user.get_id(), id_to_unfollow):
+	if current_user.get_id() and __remove_follow(current_user.get_id(), id_to_unfollow):
 		return "Unfollow successful"
 	else:
 		return "You can't unfollow?"
 
-def create_follow(follower_id, id_to_follow):
+def __create_follow(follower_id, id_to_follow):
 	cursor = mongo.db.user.find({"_id": ObjectId(id_to_follow)})
 	# check if the user we want to follow exists
 	if cursor.count() == 0:
@@ -98,7 +98,7 @@ def create_follow(follower_id, id_to_follow):
 		else:
 			return False
 
-def remove_follow(follower_id, id_to_unfollow):
+def __remove_follow(follower_id, id_to_unfollow):
 	cursor = mongo.db.user.find({"_id": ObjectId(id_to_unfollow)})
 	# make sure the user we want to follow exists
 	if cursor.count() == 0:
