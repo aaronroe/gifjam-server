@@ -272,7 +272,7 @@ def upload(user_id):
 
 def __getUserOid(name):
 	"""Looks up username in database and returns the oid of that user"""
-	cursor = mongo.db.user.find({"name": name})
+	cursor = mongo.db.user.find({"username": name})
 
 	if cursor.count() == 0:
 		return None
@@ -330,6 +330,19 @@ def __get_likes(gif_name):
 	for like in mongo.db.like.find({"name": gif_name}):
 		returnList.append(__getUsername(like['liker']))
 	return returnList
+
+@app.route("/api/user_exists")
+def user_exists():
+	params = request.args
+	if 'username' in params:
+		username = params['username']
+		user_id = __getUserOid(username)
+		if user_id:
+			return str(user_id)
+		else:
+			return ""
+	else:
+		return "You need to provide a username"
 
 @app.route("/news_feed")
 def news_feed():
