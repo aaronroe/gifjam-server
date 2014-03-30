@@ -106,33 +106,28 @@ def profile_feed():
 	if 'user' in params:
 		username = params['user']
 		if 'lastDate' in params:
-			# a last date was specified.
-			# sort the elements in the cursor by timestamp
-			# get the top 5 elements after lastDate
-			# for each of these top 5 elements:
-				# make them a json dict
-			return params['lastDate']
+			recent_cursor = mongo.db.gif.find({"$and":[{"owner": __getUserOid(username)},{"timestamp": {"$lt": int(params["lastDate"])}}]}).sort("timestamp")[:5]
 		else:
 			# assume that we want the most recent
 			# sort the elements in the cursor by timestamp
 			# get the top 5 elements
 			recent_cursor = mongo.db.gif.find({"owner": __getUserOid(username)}).sort("timestamp")[:5]
 
-			feed = []
+		feed = []
 
-			# build up the dict for each gif
-			for gif in recent_cursor:
-				gif_dict = {}
-				gif_dict["username"] = username
-				gif_dict["caption"] = gif["caption"]
-				gif_dict["timestamp"] = gif["timestamp"]
-				gif_dict["gif_url"] = "http://" + HOSTNAME + "/file/" + gif["name"] + ".gif"
-				gif_dict["likes"] = []
-				gif_dict["comments"] = []
+		# build up the dict for each gif
+		for gif in recent_cursor:
+			gif_dict = {}
+			gif_dict["username"] = username
+			gif_dict["caption"] = gif["caption"]
+			gif_dict["timestamp"] = gif["timestamp"]
+			gif_dict["gif_url"] = "http://" + HOSTNAME + "/file/" + gif["name"] + ".gif"
+			gif_dict["likes"] = []
+			gif_dict["comments"] = []
 
-				feed.append(gif_dict)
+			feed.append(gif_dict)
 
-			return json.dumps(feed)
+		return json.dumps(feed)
 	else:
 		return "A user needs to be specified"
 
