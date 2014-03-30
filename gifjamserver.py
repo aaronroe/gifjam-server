@@ -78,7 +78,7 @@ def follow(user_id):
 	else:
 		return "You can't follow, buddy"
 
-@app.route("/unfollow/<user_id>", methods=["POST"])
+@app.route("/Unfollow/<user_id>", methods=["POST"])
 def unfollow(user_id):
 	id_to_unfollow = request.form['id_to_unfollow']
 	if __remove_follow(user_id, id_to_unfollow):
@@ -226,6 +226,11 @@ def upload(user_id):
 	# if current_user.get_id():
 	file = request.files['video']
 
+	if "caption" in request.form:
+		caption = request.form['caption']
+	else:
+		caption = ""
+
 	if file and allowed_file(file.filename):
 		# escape the filename so it is safe to store on the server
 		basename = str(uuid4())
@@ -254,7 +259,7 @@ def upload(user_id):
 		os.remove(gifpath)
 
 		# finally, add an entry in the gif database
-		__insertGifInDb(basename, "", user_id)
+		__insertGifInDb(basename, caption, user_id)
 		# __insertGifInDb(basename, "", current_user.get_id())
 		# __insertGifInDb(basename, "", "")
 
