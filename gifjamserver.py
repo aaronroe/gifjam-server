@@ -2,13 +2,13 @@ import os
 
 import User
 
-from flask import Flask, request, make_response
+from flask import Flask, request, make_response, redirect, url_for
 from werkzeug.utils import secure_filename
 from moviepy.editor import *
 from flask.ext.pymongo import PyMongo, ObjectId
 from uuid import uuid4
 from gridfs import GridFS
-from flask.ext.login import LoginManager
+from flask.ext.login import LoginManager, login_user, current_user, login_required
 from flask.ext.bcrypt import Bcrypt
 import time
 import json
@@ -20,6 +20,7 @@ DEBUG = True
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.secret_key = 'this needs to be secret!'
 
 mongo = PyMongo(app)
 
@@ -50,8 +51,26 @@ def register():
 	user.save()
 	return ""
 
+@app.route("/login", methods=["POST"])
+def login():
+	email = request.form['email']
+	
+	user = User.User(email, request.form['password'])
+
+	if user.authenticate():
+		login_user(user)
+		return "Welcome, email!"
+	else:
+		return "Invalid Credentials"
+
+@app.route("/logout")
+@login_required
+def logout():
+	logout_user()
+	return redirect(url_for("index"))
+
 @app.route("/")
-def hello():
+def index():
 	return "Hello Tribe Hacks!"
 
 @app.route("/file/<filename>")
