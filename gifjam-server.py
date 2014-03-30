@@ -1,10 +1,15 @@
 import os
+
+import User
+
 from flask import Flask, request, make_response
 from werkzeug.utils import secure_filename
 from moviepy.editor import *
 from flask.ext.pymongo import PyMongo, ObjectId
 from uuid import uuid4
 from gridfs import GridFS
+from flask.ext.login import LoginManager
+from flask.ext.bcrypt import Bcrypt
 import time
 import json
 
@@ -18,10 +23,31 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 mongo = PyMongo(app)
 
+flask_bcrypt = Bcrypt(app)
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+
 def allowed_file(filename):
 	"""Takes in a filename and returns whether or not it is of the allowed filetype."""
 	return '.' in filename and \
 		filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
+
+@login_manager.user_loader
+def load_user(userid):
+	user = User()
+	user.load_by_id(userid)
+	if user.is_real():
+		return user
+	else:
+		return None
+
+@app.route("/register", methods=["POST"])
+def register():
+	email = request.form['email']
+	password_hash = flask_bcrypt.generate_password_hash(request.form['password'])
+	user = User(email,password_hash)
+	user.save()
 
 @app.route("/")
 def hello():
