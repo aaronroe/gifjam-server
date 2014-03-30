@@ -63,4 +63,4 @@ class User():
 		if self.id is None:
 			mongo.db.user.save({"username": self.username, "password": self.password, "active": self.active, "profile_gif": self.profile_gif, "bio": self.bio})	
 		else:
-			mongo.db.user.save({"_id": self.id, "username": self.username, "password": self.password, "active": self.active, "profile_gif": self.profile_gif, "bio": self.bio})
+			mongo.db.user.save({"_id": ObjectId(self.id), "username": self.username, "password": self.password, "active": self.active, "profile_gif": self.profile_gif, "bio": self.bio})

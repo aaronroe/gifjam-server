@@ -174,6 +174,16 @@ def update_profile(user_id):
 	user.update_profile(bio, profile_gif)
 	return "Update Successful"
 
+@app.route("/get_profile/<user_id>")
+def get_profile(user_id):
+	returnDict = {}
+	user = mongo.db.user.find({"_id":ObjectId(user_id)})[0]
+	returnDict['bio'] = user['bio']
+	returnDict['profile_gif_url'] = "http://" + HOSTNAME + "/file/" + user['profile_gif'] + ".gif"
+	returnDict['username'] = user['username']
+
+	return json.dumps(returnDict)
+
 @app.route("/")
 def index():
 	return "Hello Tribe Hacks!"
