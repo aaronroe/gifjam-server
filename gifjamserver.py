@@ -41,6 +41,7 @@ def load_user(userid):
 	if user.is_real():
 		return user
 	else:
+		print "invalid user"
 		return None
 
 @app.route("/register", methods=["POST"])
@@ -58,16 +59,59 @@ def login():
 	user = User.User(email, request.form['password'])
 
 	if user.authenticate():
-		login_user(user)
-		return "Welcome, email!"
+		if login_user(user):
+			return "Welcome, dude!"
+		else:
+			"Something weird is going on"
 	else:
 		return "Invalid Credentials"
 
-@app.route("/logout")
-@login_required
+@app.route("/logout", methods=["POST", "GET"])
 def logout():
 	logout_user()
 	return redirect(url_for("index"))
+
+@app.route("/follow/<id_to_follow>", methods=["POST"])
+def follow(id_to_follow):
+	if create_follow(current_user.get_id(), id_to_follow):
+		return "You are following"
+	else:
+		return "You can't follow, buddy"
+
+@app.route("/unfollow/<id_to_unfollow>", methods=["POST"])
+def unfollow(id_to_unfollow):
+	if remove_follow(current_user.get_id(), id_to_unfollow):
+		return "Unfollow successful"
+	else:
+		return "You can't unfollow?"
+
+def create_follow(follower_id, id_to_follow):
+	cursor = mongo.db.user.find({"_id": ObjectId(id_to_follow)})
+	# check if the user we want to follow exists
+	if cursor.count() == 0:
+		return False
+	else:
+		# next we need to see if we have already followed them
+		cursor = mongo.db.follow.find({"$and":[{"followed": id_to_follow}, {"follower": follower_id}]})
+		if cursor.count() == 0:
+			mongo.db.follow.save({"followed": id_to_follow, "follower": follower_id})
+			return True
+		else:
+			return False
+
+def remove_follow(follower_id, id_to_unfollow):
+	cursor = mongo.db.user.find({"_id": ObjectId(id_to_unfollow)})
+	# make sure the user we want to follow exists
+	if cursor.count() == 0:
+		return False
+	else:
+		# next we need to see if we have already followed them
+		cursor = mongo.db.follow.find({"$and":[{"followed": id_to_unfollow}, {"follower": follower_id}]})
+		if cursor.count() == 0:
+			return False
+		else:
+			mongo.db.follow.remove({"followed": id_to_unfollow, "follower": follower_id})
+			return True
 
 @app.route("/")
 def index():

@@ -1,5 +1,4 @@
-from gifjamserver import mongo
-from gifjamserver import flask_bcrypt
+from gifjamserver import mongo, flask_bcrypt, ObjectId
 
 class User():
 	def __init__(self, email=None, password=None, active=True, id=None, authenticated=False):
@@ -10,7 +9,7 @@ class User():
 		self.authenticated = False;
 
 	def load_by_id(self, id):
-		cursor = mongo.db.user.find({"_id": id})
+		cursor = mongo.db.user.find({"_id": ObjectId(id)})
 		if cursor.count() == 0:
 			return None
 		else:
