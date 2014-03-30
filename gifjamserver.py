@@ -183,8 +183,18 @@ def get_profile(user_id):
 	returnDict = {}
 	user = mongo.db.user.find({"_id":ObjectId(user_id)})[0]
 	returnDict['bio'] = user['bio']
-	returnDict['profile_gif_url'] = "http://" + HOSTNAME + "/file/" + user['profile_gif'] + ".gif"
+	if user['profile_gif'] is None:
+		returnDict['profile_gif_url'] = ""
+	else:	
+		returnDict['profile_gif_url'] = "http://" + HOSTNAME + "/file/" + str(user['profile_gif']) + ".gif"
 	returnDict['username'] = user['username']
+
+	# get following
+	params = request.args
+	if "viewer_id" in params:
+		my_user = params["viewer_id"]
+		following_cursor = mongo.db.follow.find({"$and":[{"follower": my_user}, {"followed": user_id}]})
+		returnDict['is_following'] = following_cursor.count() > 0
 
 	return json.dumps(returnDict)
 
