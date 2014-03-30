@@ -228,9 +228,9 @@ def news_feed():
 			lastDate = params["lastDate"]
 			gif_aggregate = []
 
-			followers_cursor = mongo.db.follow.find({"following": logged_in_user})
+			followers_cursor = mongo.db.follow.find({"follower": logged_in_user})
 			for follow in followers_cursor:
-				for gif in mongo.db.gif.find({"$and": [{"owner": __getUserOid(follow['followed'])}, {"timestamp": {"$lt": int(lastDate)}}]}).sort("timestamp")[:5]:
+				for gif in mongo.db.gif.find({"$and": [{"owner": follow['followed']}, {"timestamp": {"$lt": int(lastDate)}}]}).sort("timestamp")[:5]:
 					gif_aggregate.append(gif)
 
 			gif_aggregate.sort(key=lambda gif: gif['timestamp'], reverse=True)
