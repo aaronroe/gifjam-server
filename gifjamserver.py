@@ -277,6 +277,58 @@ def upload(user_id):
 	# else:
 	# 	return "You are not logged in."
 
+@app.route("/upload/profile_gif/<user_id>", methods=["POST"])
+def upload_for_profile_gif(user_id):
+	# if current_user.get_id():
+	file = request.files['video']
+
+	if "caption" in request.form:
+		caption = request.form['caption']
+	else:
+		caption = ""
+
+	if file and allowed_file(file.filename):
+		# escape the filename so it is safe to store on the server
+		basename = str(uuid4())
+		filename = secure_filename(basename + ".mp4")
+
+		# save the uploaded video.
+		name_with_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+		file.save(name_with_path)
+
+		gifname = filename.rsplit(".", 1)[0] + ".gif"
+		gifpath = "converted/" + gifname
+
+		# Create the gif
+		clip = vfx.rotation(VideoFileClip(name_with_path).resize(0.75), -90)
+		clip.crop(x1=0,y1=0,x2=clip.w,y2=clip.w-clip.h).to_gif(gifpath)
+
+		# save the video and gif to mongo
+		mp4file = open(name_with_path)
+		giffile = open(gifpath)
+		mongo.save_file(filename, mp4file)
+		mongo.save_file(gifname, giffile)
+		giffile.close()
+
+		# clean up what we uploaded.
+		os.remove(name_with_path)
+		os.remove(gifpath)
+
+		# finally, add an entry in the gif database
+		__insertGifInDb(basename, caption, user_id)
+		# __insertGifInDb(basename, "", current_user.get_id())
+		# __insertGifInDb(basename, "", "")
+
+		user = User.User()
+		user.load_by_id(user_id)
+		user.update_profile(profile_gif=filename.rsplit(".", 1)[0])
+
+		return "Upload successful"
+	else:
+		return "That type of file is not allowed"
+	# else:
+	# 	return "You are not logged in."
+
 def __getUserOid(name):
 	"""Looks up username in database and returns the oid of that user"""
 	cursor = mongo.db.user.find({"username": name})
