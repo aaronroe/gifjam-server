@@ -284,6 +284,7 @@ def profile_feed():
 		for gif in recent_cursor:
 			gif_dict = {}
 			gif_dict["username"] = mongo.db.user.find({"_id": ObjectId(user_id)})[0]['username']
+			gif_dict["user_id"] = user_id
 			gif_dict["caption"] = gif["caption"]
 			gif_dict["timestamp"] = gif["timestamp"]
 			gif_dict["gif_url"] = "http://" + HOSTNAME + "/file/" + gif["name"] + ".gif"
@@ -342,6 +343,7 @@ def news_feed():
 		for gif in gif_aggregate:
 			gif_dict = {}
 			gif_dict["username"] = mongo.db.user.find({"_id": ObjectId(gif["owner"])})[0]['username']
+			gif_dict["user_id"] = gif["owner"]
 			gif_dict["caption"] = gif["caption"]
 			gif_dict["timestamp"] = gif["timestamp"]
 			gif_dict["gif_url"] = "http://" + HOSTNAME + "/file/" + gif["name"] + ".gif"
