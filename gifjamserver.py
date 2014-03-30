@@ -70,16 +70,18 @@ def logout():
 	logout_user()
 	return redirect(url_for("index"))
 
-@app.route("/follow/<id_to_follow>", methods=["POST"])
-def follow(id_to_follow):
-	if current_user.get_id() and __create_follow(current_user.get_id(), id_to_follow):
+@app.route("/follow/<user_id>", methods=["POST"])
+def follow(user_id):
+	id_to_follow = request.form['id_to_follow']
+	if __create_follow(user_id, id_to_follow):
 		return "You are following"
 	else:
 		return "You can't follow, buddy"
 
-@app.route("/unfollow/<id_to_unfollow>", methods=["POST"])
-def unfollow(id_to_unfollow):
-	if current_user.get_id() and __remove_follow(current_user.get_id(), id_to_unfollow):
+@app.route("/unfollow/<user_id>", methods=["POST"])
+def unfollow(user_id):
+	id_to_unfollow = request.form['id_to_unfollow']
+	if __remove_follow(user_id, id_to_unfollow):
 		return "Unfollow successful"
 	else:
 		return "You can't unfollow?"
@@ -112,9 +114,10 @@ def __remove_follow(follower_id, id_to_unfollow):
 			mongo.db.follow.remove({"followed": id_to_unfollow, "follower": follower_id})
 			return True
 
-@app.route("/like/<gif_name>", methods=["POST"])
+@app.route("/like/<user_id>", methods=["POST"])
 def like(gif_name):
-	if current_user.get_id() and __create_like(current_user.get_id(), gif_name):
+	gif_name = request.form['gif_name']
+	if current_user.get_id() and __create_like(user_id, gif_name):
 		return "Like successful"
 	else:
 		return "You can't Like!"
@@ -138,9 +141,10 @@ def __create_like(liker_id, gif_name):
 			else:
 				return False
 
-@app.route("/unlike/<gif_name>", methods=["POST"])
-def unlike(gif_name):
-	if current_user.get_id() and __remove_like(current_user.get_id(), gif_name):
+@app.route("/unlike/<user_id>", methods=["POST"])
+def unlike(user_id):
+	gif_name = request.form['gif_name']
+	if __remove_like(user_id, gif_name):
 		return "Unlike successful"
 	else:
 		return "You can't unlike?"
