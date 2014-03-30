@@ -16,6 +16,7 @@ import json
 UPLOAD_FOLDER = 'file-uploads'
 ALLOWED_EXTENSIONS = set(['mp4'])
 HOSTNAME = "128.239.163.254:5000"
+CHUNK_SIZE = 50
 DEBUG = True
 
 app = Flask(__name__)
@@ -78,7 +79,7 @@ def follow(user_id):
 	else:
 		return "You can't follow, buddy"
 
-@app.route("/Unfollow/<user_id>", methods=["POST"])
+@app.route("/unfollow/<user_id>", methods=["POST"])
 def unfollow(user_id):
 	id_to_unfollow = request.form['id_to_unfollow']
 	if __remove_follow(user_id, id_to_unfollow):
@@ -115,9 +116,9 @@ def __remove_follow(follower_id, id_to_unfollow):
 			return True
 
 @app.route("/like/<user_id>", methods=["POST"])
-def like(gif_name):
+def like(user_id):
 	gif_name = request.form['gif_name']
-	if current_user.get_id() and __create_like(user_id, gif_name):
+	if __create_like(user_id, gif_name):
 		return "Like successful"
 	else:
 		return "You can't Like!"
@@ -278,6 +279,14 @@ def __getUserOid(name):
 	else:
 		return cursor[0]["_id"]
 
+def __getUsername(oid):
+	cursor = mongo.db.user.find({"_id": ObjectId(oid)})
+
+	if cursor.count() == 0:
+		return None
+	else:
+		return cursor[0]["username"]
+
 def __insertGifInDb(name, caption, owner_oid):
 	"""Inserts the gif into the db"""
 	mongo.db.gif.insert({"name": name, "caption":caption, "owner":owner_oid, "timestamp":int(time.time())})
@@ -290,12 +299,12 @@ def profile_feed():
 		user_id = params['user']
 		if 'lastDate' in params:
 			lastDate = params["lastDate"]
-			recent_cursor = mongo.db.gif.find({"$and":[{"owner": user_id},{"timestamp": {"$lt": int(lastDate)}}]}).sort("timestamp")[:5]
+			recent_cursor = mongo.db.gif.find({"$and":[{"owner": user_id},{"timestamp": {"$lt": int(lastDate)}}]}).sort("timestamp", -1)[:CHUNK_SIZE]
 		else:
 			# assume that we want the most recent
 			# sort the elements in the cursor by timestamp
 			# get the top 5 elements
-			recent_cursor = mongo.db.gif.find({"owner": user_id}).sort("timestamp")[:5]
+			recent_cursor = mongo.db.gif.find({"owner": user_id}).sort("timestamp", -1)[:CHUNK_SIZE]
 
 		feed = []
 
@@ -319,7 +328,7 @@ def profile_feed():
 def __get_likes(gif_name):
 	returnList = []
 	for like in mongo.db.like.find({"name": gif_name}):
-		returnList.append(like['liker'])
+		returnList.append(__getUsername(like['liker']))
 	return returnList
 
 @app.route("/news_feed")
@@ -334,12 +343,12 @@ def news_feed():
 
 			followers_cursor = mongo.db.follow.find({"follower": logged_in_user})
 			for follow in followers_cursor:
-				for gif in mongo.db.gif.find({"$and": [{"owner": follow['followed']}, {"timestamp": {"$lt": int(lastDate)}}]}).sort("timestamp")[:5]:
+				for gif in mongo.db.gif.find({"$and": [{"owner": follow['followed']}, {"timestamp": {"$lt": int(lastDate)}}]}).sort("timestamp", -1)[:CHUNK_SIZE]:
 					gif_aggregate.append(gif)
 
 			gif_aggregate.sort(key=lambda gif: gif['timestamp'], reverse=True)
 
-			gif_aggregate = gif_aggregate[:5]
+			gif_aggregate = gif_aggregate[:CHUNK_SIZE]
 
 		else:
 			# we need to build aggregate of gifs from people we are following
@@ -348,13 +357,12 @@ def news_feed():
 			# we assume that user wants the latest feed content
 			followers_cursor = mongo.db.follow.find({"follower": logged_in_user})
 			for follow in followers_cursor:
-				print follow['followed']
-				for gif in mongo.db.gif.find({"owner": follow['followed']}).sort("timestamp")[:5]:
+				for gif in mongo.db.gif.find({"owner": follow['followed']}).sort("timestamp", -1)[:CHUNK_SIZE]:
 					gif_aggregate.append(gif)
 
 			gif_aggregate.sort(key=lambda gif: gif['timestamp'], reverse=True)
 
-			gif_aggregate = gif_aggregate[:5]
+			gif_aggregate = gif_aggregate[:CHUNK_SIZE]
 
 		feed = []
 
