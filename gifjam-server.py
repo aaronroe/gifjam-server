@@ -99,14 +99,15 @@ def __insertGifInDb(name, caption, owner_oid):
 	"""Inserts the gif into the db"""
 	mongo.db.gif.insert({"name": name, "caption":caption, "owner":owner_oid, "timestamp":int(time.time())})
 
-@app.route("/profilefeed")
+@app.route("/profile_feed")
 def profile_feed():
 	"""Takes in a lastDate and user GET variables. Returns the next food in the feed"""
 	params = request.args
 	if 'user' in params:
 		username = params['user']
 		if 'lastDate' in params:
-			recent_cursor = mongo.db.gif.find({"$and":[{"owner": __getUserOid(username)},{"timestamp": {"$lt": int(params["lastDate"])}}]}).sort("timestamp")[:5]
+			lastDate = params["lastDate"]
+			recent_cursor = mongo.db.gif.find({"$and":[{"owner": __getUserOid(username)},{"timestamp": {"$lt": int(lastDate)}}]}).sort("timestamp")[:5]
 		else:
 			# assume that we want the most recent
 			# sort the elements in the cursor by timestamp
@@ -130,6 +131,37 @@ def profile_feed():
 		return json.dumps(feed)
 	else:
 		return "A user needs to be specified"
+
+@app.route("/news_feed")
+def news_feed():
+	"""Takes in a lastDate and a loggedInUser"""
+	params = request.args
+	if 'loggedInUser' in params:
+		logged_in_user = params["logged_in_user"]
+		if 'lastDate' in params:
+			lastDate = params["lastDate"]
+			recent_cursor = []
+		else:
+			# we assume that user wants the latest feed content
+			recent_cursor = []
+
+		feed = []
+
+		# build up the dict for each gif
+		for gif in recent_cursor:
+			gif_dict = {}
+			gif_dict["username"] = username
+			gif_dict["caption"] = gif["caption"]
+			gif_dict["timestamp"] = gif["timestamp"]
+			gif_dict["gif_url"] = "http://" + HOSTNAME + "/file/" + gif["name"] + ".gif"
+			gif_dict["likes"] = []
+			gif_dict["comments"] = []
+
+			feed.append(gif_dict)
+
+		return json.dumps(feed)
+	else:
+		return "You are not logged in"
 
 if __name__ == "__main__":
 	if DEBUG:
